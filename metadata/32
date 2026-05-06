@@ -1,0 +1,27 @@
+{
+    "name":  "Ritual Identity SBT #32",
+    "description":  "Soulbound ERC-721 NFT identity pass for Ritual Staking. Holders can use this pass for identity-gated access.",
+    "image":  "https://gateway.pinata.cloud/ipfs/bafybeihu2nye77hfbepd724quw24rob7vpv7bzlvjj3awjmnpg3r2kp3qm",
+    "attributes":  [
+                       {
+                           "trait_type":  "Protocol",
+                           "value":  "Ritual Staking"
+                       },
+                       {
+                           "trait_type":  "Token Type",
+                           "value":  "Soulbound NFT"
+                       },
+                       {
+                           "trait_type":  "Standard",
+                           "value":  "ERC-721 / ERC-5192"
+                       },
+                       {
+                           "trait_type":  "Chain",
+                           "value":  "Ritual Chain"
+                       },
+                       {
+                           "trait_type":  "Max Supply",
+                           "value":  100
+                       }
+                   ]
+}

@@ -1,0 +1,37 @@
+# ── Environment / Secrets ──────────────────────
+.env
+.env.*
+!.env.example
+contracts/.env
+contracts/.env.*
+!contracts/.env.example
+
+# ── Dependencies ──────────────────────────────
+node_modules/
+contracts/lib/
+
+# ── Build output ──────────────────────────────
+.next/
+out/
+dist/
+build/
+contracts/cache/
+contracts/out/
+contracts/broadcast/
+
+# ── Logs ──────────────────────────────────────
+*.log
+
+# ── Editor / OS ───────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# ── Project-specific ─────────────────────────
+tsconfig.tsbuildinfo
+.vercel/
+.ritual-build/
+NEW_CHAT_CONTEXT.md
