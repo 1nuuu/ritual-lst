@@ -1,4 +1,4 @@
-# ── Environment / Secrets ──────────────────────
+# Environment / secrets
 .env
 .env.*
 !.env.example
@@ -6,11 +6,11 @@ contracts/.env
 contracts/.env.*
 !contracts/.env.example
 
-# ── Dependencies ──────────────────────────────
+# Dependencies
 node_modules/
 contracts/lib/
 
-# ── Build output ──────────────────────────────
+# Build output
 .next/
 out/
 dist/
@@ -19,10 +19,10 @@ contracts/cache/
 contracts/out/
 contracts/broadcast/
 
-# ── Logs ──────────────────────────────────────
+# Logs
 *.log
 
-# ── Editor / OS ───────────────────────────────
+# Editor / OS
 .DS_Store
 Thumbs.db
 *.swp
@@ -30,7 +30,7 @@ Thumbs.db
 .vscode/
 .idea/
 
-# ── Project-specific ─────────────────────────
+# Project-specific local files
 tsconfig.tsbuildinfo
 .vercel/
 .ritual-build/
