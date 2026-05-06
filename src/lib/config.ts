@@ -1,40 +1,13 @@
-const requirePublicEnv = (name: string, rawValue: string | undefined) => {
-  const value = rawValue?.trim();
-  if (!value) {
-    throw new Error(`${name} is required.`);
-  }
+const env = (name: string, fallback: string): string =>
+  process.env[name]?.trim() || fallback;
 
-  return value;
-};
-
-const protocolName = requirePublicEnv(
-  "NEXT_PUBLIC_PROTOCOL_NAME",
-  process.env.NEXT_PUBLIC_PROTOCOL_NAME,
-);
-const tokenSymbol = requirePublicEnv(
-  "NEXT_PUBLIC_TOKEN_SYMBOL",
-  process.env.NEXT_PUBLIC_TOKEN_SYMBOL,
-);
-const lstSymbol = requirePublicEnv(
-  "NEXT_PUBLIC_LST_SYMBOL",
-  process.env.NEXT_PUBLIC_LST_SYMBOL,
-);
-const chainName = requirePublicEnv(
-  "NEXT_PUBLIC_CHAIN_NAME",
-  process.env.NEXT_PUBLIC_CHAIN_NAME,
-);
-const explorerUrl = requirePublicEnv(
-  "NEXT_PUBLIC_EXPLORER_URL",
-  process.env.NEXT_PUBLIC_EXPLORER_URL,
-);
-const sbtName = requirePublicEnv(
-  "NEXT_PUBLIC_SBT_NAME",
-  process.env.NEXT_PUBLIC_SBT_NAME,
-);
-const sbtSymbol = requirePublicEnv(
-  "NEXT_PUBLIC_SBT_SYMBOL",
-  process.env.NEXT_PUBLIC_SBT_SYMBOL,
-);
+const protocolName = env("NEXT_PUBLIC_PROTOCOL_NAME", "Ritual Staking");
+const tokenSymbol = env("NEXT_PUBLIC_TOKEN_SYMBOL", "RITUAL");
+const lstSymbol = env("NEXT_PUBLIC_LST_SYMBOL", "xRITUAL");
+const chainName = env("NEXT_PUBLIC_CHAIN_NAME", "Ritual Chain");
+const explorerUrl = env("NEXT_PUBLIC_EXPLORER_URL", "https://explorer.ritualfoundation.org");
+const sbtName = env("NEXT_PUBLIC_SBT_NAME", "Ritual Identity SBT");
+const sbtSymbol = env("NEXT_PUBLIC_SBT_SYMBOL", "rSBT");
 
 export const config = {
   protocolName,

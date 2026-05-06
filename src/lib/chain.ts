@@ -1,15 +1,8 @@
 import { defineChain } from "viem";
 import { config } from "@/lib/config";
 
-const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID);
-if (!Number.isInteger(chainId) || chainId <= 0) {
-  throw new Error("NEXT_PUBLIC_CHAIN_ID must be a positive integer.");
-}
-
-const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL?.trim();
-if (!rpcUrl) {
-  throw new Error("NEXT_PUBLIC_RPC_URL is required.");
-}
+const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID) || 1979;
+const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL?.trim() || "https://rpc.ritualfoundation.org";
 
 export const ritualChain = defineChain({
   id: chainId,
