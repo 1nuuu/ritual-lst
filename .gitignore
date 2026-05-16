@@ -34,4 +34,5 @@ Thumbs.db
 tsconfig.tsbuildinfo
 .vercel/
 .ritual-build/
+.codex/
 NEW_CHAT_CONTEXT.md
