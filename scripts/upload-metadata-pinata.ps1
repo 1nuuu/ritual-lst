@@ -1,6 +1,7 @@
 param(
   [string]$MetadataDir = "metadata",
-  [string]$EnvPath = "contracts/.env"
+  [string]$EnvPath = "contracts/.env",
+  [int]$ExpectedCount = 0
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,8 +62,26 @@ if (-not (Test-Path $MetadataDir)) {
 }
 
 $files = Get-ChildItem $MetadataDir -File | Sort-Object { [int]$_.Name }
-if ($files.Count -ne 100) {
-  throw "Expected 100 metadata files, found $($files.Count)."
+if ($ExpectedCount -le 0) {
+  $envSupply = Read-DotEnvValue -Path $EnvPath -Key "SBT_INITIAL_MAX_SUPPLY"
+  if (-not [string]::IsNullOrWhiteSpace($envSupply)) {
+    $ExpectedCount = [int]$envSupply
+  }
+}
+
+if ($ExpectedCount -le 0) {
+  throw "ExpectedCount is missing. Pass -ExpectedCount or set SBT_INITIAL_MAX_SUPPLY in $EnvPath."
+}
+
+if ($files.Count -ne $ExpectedCount) {
+  throw "Expected $ExpectedCount metadata files, found $($files.Count)."
+}
+
+for ($tokenId = 1; $tokenId -le $ExpectedCount; $tokenId++) {
+  $metadataPath = Join-Path $MetadataDir ([string]$tokenId)
+  if (-not (Test-Path $metadataPath)) {
+    throw "Metadata is not contiguous. Missing token metadata file: $metadataPath"
+  }
 }
 
 $content = [System.Net.Http.MultipartFormDataContent]::new()

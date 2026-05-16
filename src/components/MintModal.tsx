@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   useAccount,
   useConnect,
@@ -53,6 +54,7 @@ const formatTokenSerial = (value: string | null) =>
 
 export function MintModal({ isOpen, onClose }: MintModalProps) {
   const { address, chain, isConnected } = useAccount();
+  const router = useRouter();
   const { connect, connectors } = useConnect();
   const { switchChain } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: ritualChain.id });
@@ -291,6 +293,18 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
       setPhase("idle");
     }
   }, [isConnected, phase]);
+
+  useEffect(() => {
+    if (phase !== "success" && phase !== "already-minted") {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      router.replace("/stake");
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [phase, router]);
 
   const handleMint = useCallback(() => {
     if (!isSbtConfigured) {

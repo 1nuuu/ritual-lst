@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { MintModal } from "./MintModal";
 import { config, prefixedSymbol } from "@/lib/config";
@@ -12,12 +13,20 @@ export function Hero() {
   const orbCRef = useRef<HTMLDivElement>(null);
   const [mintOpen, setMintOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
   const { isConnected } = useAccount();
   const { hasSBT, isLoading: isCheckingSBT } = useHasSBT();
-  const identityVerified = mounted && hasSBT;
   const checkingIdentity = mounted && isConnected && isCheckingSBT;
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (!mounted || !isConnected || isCheckingSBT || !hasSBT) {
+      return;
+    }
+
+    router.replace("/stake");
+  }, [hasSBT, isCheckingSBT, isConnected, mounted, router]);
 
   useEffect(() => {
     let ticking = false;
@@ -98,15 +107,9 @@ export function Hero() {
           <button
             className="btn"
             onClick={() => setMintOpen(true)}
-            disabled={identityVerified || checkingIdentity}
+            disabled={checkingIdentity}
           >
-            <span>
-              {identityVerified
-                ? "Identity Verified \u2713"
-                : checkingIdentity
-                  ? "Checking Identity..."
-                  : "Mint SBT"}
-            </span>
+            <span>{checkingIdentity ? "Checking Identity..." : "Mint SBT"}</span>
           </button>
         </div>
       </section>

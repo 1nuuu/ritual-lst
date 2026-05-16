@@ -8,6 +8,13 @@ export const metadata: Metadata = {
   description: `A Ritual-native liquid staking protocol. Stake ${
     config.tokenSymbol
   }, receive ${prefixedSymbol(config.lstSymbol)}, stay liquid.`,
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/ritual-token-logo.png", type: "image/png" },
+    ],
+    apple: "/ritual-token-logo.png",
+  },
 };
 
 export const viewport: Viewport = {

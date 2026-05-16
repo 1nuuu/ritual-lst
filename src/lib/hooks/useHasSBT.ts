@@ -16,7 +16,9 @@ export function useHasSBT() {
     },
   });
 
-  const hasSBT = (balance.data ?? BigInt(0)) > BigInt(0);
+  const hasSBT =
+    Boolean(address && isSbtConfigured) &&
+    (balance.data ?? BigInt(0)) > BigInt(0);
 
   const token = useReadContract({
     address: SBT_CONTRACT,
@@ -31,6 +33,8 @@ export function useHasSBT() {
   return {
     hasSBT,
     tokenId: hasSBT ? token.data ?? null : null,
-    isLoading: balance.isLoading || token.isLoading,
+    isLoading:
+      Boolean(address && isSbtConfigured) &&
+      (balance.isLoading || token.isLoading),
   };
 }
