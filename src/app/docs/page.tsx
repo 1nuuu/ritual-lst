@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { Footer } from "@/components/Footer";
 import { Nav } from "@/components/Nav";
 
-const RITUAL_LST_ADDRESS = "0x7ccfEcd93Cb3Bf48BDa747De884d0d5F11Fc7B35";
+const RITUAL_LST_ADDRESS = "0x161f394F46c0Eb7Cc6AE4691815130684b607eaE";
+const RITUAL_XRITUAL_ADDRESS = "0x7Bb1cA1Df4Aa62A441e37Adc5DF814E8C61d2001";
 const RITUAL_SBT_ADDRESS = "0xbeF776D31F0fb4F141e12443Eb0956F5fBd75398";
 const RITUAL_RPC_URL = "https://rpc.ritualfoundation.org";
 const RITUAL_EXPLORER_URL = "https://explorer.ritualfoundation.org";
@@ -47,9 +48,15 @@ const howItWorksSteps = [
 
 const contracts = [
   {
-    name: "RitualLST (xRITUAL)",
+    name: "RitualLST",
     address: RITUAL_LST_ADDRESS,
-    description: "Staking pool and xRITUAL token",
+    description: "Staking pool — handles stake, unstake, unbonding, and yield",
+  },
+  {
+    name: "xRITUAL Token",
+    address: RITUAL_XRITUAL_ADDRESS,
+    description:
+      "Liquid staking ERC20 token — transferable, usable across the ecosystem",
   },
   {
     name: "RitualSBT",
@@ -59,7 +66,10 @@ const contracts = [
 ] as const;
 
 type SectionId = (typeof docSections)[number]["id"];
-type ContractAddress = (typeof contracts)[number]["address"];
+type ContractAddress =
+  | typeof RITUAL_LST_ADDRESS
+  | typeof RITUAL_XRITUAL_ADDRESS
+  | typeof RITUAL_SBT_ADDRESS;
 
 const explorerAddressUrl = (address: string) =>
   `${RITUAL_EXPLORER_URL}/address/${address}`;
@@ -350,10 +360,12 @@ export default function DocsPage() {
                 <article className="docs-faq-item">
                   <h3>What is xRITUAL?</h3>
                   <p>
-                    xRITUAL is a liquid staking token that represents your
-                    staked RITUAL. It appreciates in value as yield accrues,
-                    meaning 1 xRITUAL will eventually be worth more than 1
-                    RITUAL. You can unstake at any time by burning xRITUAL.
+                    xRITUAL is a standalone ERC20 contract separate from the
+                    RitualLST staking pool, so the token is composable with
+                    other dapps (DEX, lending, and more). It represents your
+                    staked RITUAL, appreciates in value as yield accrues, meaning
+                    1 xRITUAL will eventually be worth more than 1 RITUAL. You can
+                    unstake at any time by burning xRITUAL via the staking pool.
                   </p>
                 </article>
 

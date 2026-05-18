@@ -19,10 +19,10 @@ const STEPS = [
   },
   {
     idx: "02 / 04",
-    locked: true,
+    locked: false,
     terminal: [
-      { prefix: ">", text: `vault.deposit(${config.tokenSymbol})`, cls: "t-g" },
-      { prefix: "", text: "// delegate to validators", cls: "t-d" },
+      { prefix: ">", text: "vault.stake(RITUAL)", cls: "t-g" },
+      { prefix: "", text: "// liquid staking pool", cls: "t-d" },
       { prefix: "ok", text: "stake confirmed", cls: "t-g" },
     ],
     title: `Deposit ${config.tokenSymbol}`,
@@ -31,23 +31,23 @@ const STEPS = [
   },
   {
     idx: "03 / 04",
-    locked: true,
+    locked: false,
     terminal: [
       {
         prefix: ">",
-        text: `token.mint(${prefixedSymbol(config.lstSymbol)})`,
+        text: "xRITUAL.mint(amount)",
         cls: "t-g",
       },
-      { prefix: "", text: "// ratio 1:1", cls: "t-d" },
+      { prefix: "", text: "// standalone ERC20 token", cls: "t-d" },
       { prefix: "ok", text: "liquid position", cls: "t-g" },
     ],
     title: `Receive ${prefixedSymbol(config.lstSymbol)}`,
-    desc: `Get ${prefixedSymbol(config.lstSymbol)} minted 1:1 to your deposit. These liquid tokens represent your staked position and can be used freely.`,
+    desc: `Get ${prefixedSymbol(config.lstSymbol)} minted 1:1 to your deposit via the staking pool. xRITUAL is a standalone ERC20 you can transfer and use across the ecosystem—not just a receipt token.`,
     tag: "LST Token",
   },
   {
     idx: "04 / 04",
-    locked: true,
+    locked: false,
     terminal: [
       {
         prefix: ">",
