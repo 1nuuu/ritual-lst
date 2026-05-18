@@ -1,4 +1,5 @@
-const configuredXRitualAddress = process.env.NEXT_PUBLIC_XRITUAL_ADDRESS?.trim();
+const configuredXRitualAddress =
+  process.env.NEXT_PUBLIC_XRITUAL_ADDRESS?.trim();
 
 const isContractAddress = (
   value: string | undefined,
@@ -22,6 +23,18 @@ export const xRitualAbi = [
         type: "address",
       },
     ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "totalSupply",
+    stateMutability: "view",
+    inputs: [],
     outputs: [
       {
         name: "",
@@ -57,6 +70,31 @@ export const xRitualAbi = [
     inputs: [
       {
         name: "spender",
+        type: "address",
+      },
+      {
+        name: "amount",
+        type: "uint256",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "bool",
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "transferFrom",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "from",
+        type: "address",
+      },
+      {
+        name: "to",
         type: "address",
       },
       {

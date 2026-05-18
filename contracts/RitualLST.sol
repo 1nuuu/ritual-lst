@@ -62,12 +62,14 @@ interface ITEEServiceRegistry {
     ) external view returns (TEEServiceContext[] memory);
 }
 
-interface IERC20Events {
-    event Transfer(address indexed from, address indexed to, uint256 value);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
+interface IxRITUAL {
+    function mint(address to, uint256 amount) external;
+    function burn(address from, uint256 amount) external;
+    function balanceOf(address account) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
 }
 
-contract RitualLST is IERC20Events {
+contract RitualLST {
     address constant HTTP_PRECOMPILE = 0x0000000000000000000000000000000000000801;
     address constant JQ_PRECOMPILE = 0x0000000000000000000000000000000000000803;
     address constant ASYNC_DELIVERY = 0x5A16214fF555848411544b005f7Ac063742f39F6;
@@ -86,13 +88,7 @@ contract RitualLST is IERC20Events {
 
     uint256 private _locked = 1;
 
-    string public constant name = "Ritual Staked RITUAL";
-    string public constant symbol = "xRITUAL";
-    uint8 public constant decimals = 18;
-
-    uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
-    mapping(address => mapping(address => uint256)) public allowance;
+    IxRITUAL public xRitualToken;
 
     uint256 public totalStaked;
     uint256 public unbondingPeriod = 1714;
@@ -155,11 +151,13 @@ contract RitualLST is IERC20Events {
         _locked = 1;
     }
 
-    constructor(address _feeRecipient, address _sbtContract) {
+    constructor(address _feeRecipient, address _sbtContract, address _xRitualToken) {
         require(_feeRecipient != address(0), "zero fee recipient");
+        require(_xRitualToken != address(0), "zero xRITUAL address");
         owner = msg.sender;
         feeRecipient = _feeRecipient;
         sbtContract = IPuffSBT(_sbtContract);
+        xRitualToken = IxRITUAL(_xRitualToken);
         lastRebaseBlock = block.number;
     }
 
@@ -173,7 +171,7 @@ contract RitualLST is IERC20Events {
         require(xRitualMinted > 0, "amount too small");
 
         totalStaked += msg.value;
-        _mint(msg.sender, xRitualMinted);
+        xRitualToken.mint(msg.sender, xRitualMinted);
 
         emit Staked(msg.sender, msg.value, xRitualMinted);
     }
@@ -184,18 +182,21 @@ contract RitualLST is IERC20Events {
 
     function unstake(uint256 xRitualAmount) external nonReentrant returns (uint256 ritualReturned) {
         require(xRitualAmount > 0, "zero amount");
-        require(balanceOf[msg.sender] >= xRitualAmount, "insufficient xRITUAL");
+        require(
+            xRitualToken.balanceOf(msg.sender) >= xRitualAmount,
+            "insufficient xRITUAL"
+        );
         require(unbondingRequests[msg.sender].amount == 0, "claim pending unstake");
 
         ritualReturned = (xRitualAmount * exchangeRate) / 1e18;
         require(address(this).balance >= ritualReturned, "insufficient liquidity");
 
-        _burn(msg.sender, xRitualAmount);
+        xRitualToken.burn(msg.sender, xRitualAmount);
         totalStaked = ritualReturned >= totalStaked
             ? 0
             : totalStaked - ritualReturned;
 
-        if (totalSupply == 0) {
+        if (xRitualToken.totalSupply() == 0) {
             exchangeRate = 1e18;
         }
 
@@ -301,8 +302,8 @@ contract RitualLST is IERC20Events {
 
     function depositYield() external payable onlyOwner {
         require(msg.value > 0, "zero yield");
-        require(totalSupply > 0, "no stakers");
-        exchangeRate = (address(this).balance * 1e18) / totalSupply;
+        require(xRitualToken.totalSupply() > 0, "no stakers");
+        exchangeRate = (address(this).balance * 1e18) / xRitualToken.totalSupply();
         emit Rebased(exchangeRate, msg.value, block.number);
     }
 
@@ -327,8 +328,10 @@ contract RitualLST is IERC20Events {
             require(sent, "fee transfer failed");
         }
 
-        if (totalSupply > 0) {
-            exchangeRate = (address(this).balance * 1e18) / totalSupply;
+        if (xRitualToken.totalSupply() > 0) {
+            exchangeRate =
+                (address(this).balance * 1e18) /
+                xRitualToken.totalSupply();
         }
 
         emit Rebased(exchangeRate, actualYield - feeAmount, block.number);
@@ -515,47 +518,6 @@ contract RitualLST is IERC20Events {
         emit SchedulerConfigured(schedulerCallId, frequency, numCalls);
     }
 
-    function transfer(address to, uint256 amount) external returns (bool) {
-        return _transfer(msg.sender, to, amount);
-    }
-
-    function approve(address spender, uint256 amount) external returns (bool) {
-        allowance[msg.sender][spender] = amount;
-        emit Approval(msg.sender, spender, amount);
-        return true;
-    }
-
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
-        uint256 currentAllowance = allowance[from][msg.sender];
-        if (currentAllowance != type(uint256).max) {
-            require(currentAllowance >= amount, "allowance exceeded");
-            allowance[from][msg.sender] = currentAllowance - amount;
-        }
-        return _transfer(from, to, amount);
-    }
-
-    function _transfer(address from, address to, uint256 amount) internal returns (bool) {
-        require(to != address(0), "transfer to zero");
-        require(balanceOf[from] >= amount, "insufficient balance");
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
-        emit Transfer(from, to, amount);
-        return true;
-    }
-
-    function _mint(address to, uint256 amount) internal {
-        totalSupply += amount;
-        balanceOf[to] += amount;
-        emit Transfer(address(0), to, amount);
-    }
-
-    function _burn(address from, uint256 amount) internal {
-        require(balanceOf[from] >= amount, "insufficient balance");
-        balanceOf[from] -= amount;
-        totalSupply -= amount;
-        emit Transfer(from, address(0), amount);
-    }
-
     function setFeeRecipient(address _feeRecipient) external onlyOwner {
         feeRecipient = _feeRecipient;
     }
@@ -582,7 +544,7 @@ contract RitualLST is IERC20Events {
     }
 
     function emergencyWithdraw() external onlyOwner {
-        require(totalSupply == 0, "active stakers");
+        require(xRitualToken.totalSupply() == 0, "active stakers");
         (bool sent, ) = owner.call{value: address(this).balance}("");
         require(sent, "transfer failed");
     }

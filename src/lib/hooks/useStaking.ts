@@ -35,10 +35,6 @@ const isWalletAddress = (
 ): value is `0x${string}` =>
   Boolean(value && /^0x[a-fA-F0-9]{40}$/.test(value));
 
-void isXRitualConfigured;
-void XRITUAL_CONTRACT;
-void xRitualAbi;
-
 const getErrorMessage = (error: unknown) => {
   if (!error) {
     return null;
@@ -71,12 +67,12 @@ export function useStaking(userAddress: string | undefined) {
   });
 
   const xRitualBalanceRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
-    abi: stakingPoolAbi,
+    address: XRITUAL_CONTRACT,
+    abi: xRitualAbi,
     functionName: "balanceOf",
     args: contractUserAddress ? [contractUserAddress] : undefined,
     query: {
-      enabled: Boolean(contractUserAddress && isStakingPoolConfigured),
+      enabled: Boolean(contractUserAddress && isXRitualConfigured),
     },
   });
 

@@ -5,7 +5,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {RitualLST} from "../RitualLST.sol";
 import {xRITUAL} from "../src/xRITUAL.sol";
 
-contract DeployLST is Script {
+contract DeployAll is Script {
     address internal constant SBT_CONTRACT = 0xbeF776D31F0fb4F141e12443Eb0956F5fBd75398;
     uint256 internal constant RITUAL_CHAIN_ID = 1979;
 
@@ -19,14 +19,15 @@ contract DeployLST is Script {
         vm.startBroadcast(privateKey);
 
         require(block.chainid == RITUAL_CHAIN_ID, "wrong chain");
+
         xRitual = new xRITUAL("Ritual Staked RITUAL", "xRITUAL", deployer);
         lst = new RitualLST(deployer, SBT_CONTRACT, address(xRitual));
         xRitual.setStakingPool(address(lst));
 
         vm.stopBroadcast();
 
-        console.log("RitualLST deployed at:", address(lst));
         console.log("xRITUAL deployed at:", address(xRitual));
+        console.log("RitualLST deployed at:", address(lst));
         console.log("Network:", "ritual-testnet");
         console.log("Chain ID:", block.chainid);
         console.log("Deployer:", deployer);

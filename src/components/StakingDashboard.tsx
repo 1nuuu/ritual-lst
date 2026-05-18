@@ -7,7 +7,6 @@ import { ritualChain } from "@/lib/chain";
 import { config } from "@/lib/config";
 import { useStaking } from "@/lib/hooks/useStaking";
 import { isStakingPoolConfigured } from "@/lib/staking";
-import { isXRitualConfigured } from "@/lib/xritual";
 
 const ZERO = BigInt(0);
 
@@ -250,7 +249,7 @@ export function StakingDashboard() {
     setActiveAction(null);
   };
 
-  const contractReady = isStakingPoolConfigured && isXRitualConfigured;
+  const contractReady = isStakingPoolConfigured;
   const actionDisabled = isLoading || !contractReady || !address;
   const nativeBalanceValue = nativeBalance.data?.value ?? ZERO;
 
