@@ -2,6 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { Connector } from "wagmi";
 import { useAccount, useConnect } from "wagmi";
 import { config } from "@/lib/config";
 import { useHasSBT } from "@/lib/hooks/useHasSBT";
@@ -44,6 +45,25 @@ const getAccessScanSessionKey = (
 
 const getShortAddress = (wallet: string | undefined) =>
   wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "undefined";
+
+const getConnectorLabel = (connector: Connector) => {
+  if (connector.id === "injected") {
+    return connector.name || "Browser Wallet";
+  }
+
+  if (connector.id === "walletConnect") {
+    return "WalletConnect";
+  }
+
+  if (
+    connector.id === "coinbaseWallet" ||
+    connector.id === "coinbaseWalletSDK"
+  ) {
+    return "Coinbase Wallet";
+  }
+
+  return connector.name;
+};
 
 const getLineStyle = (delay: number) =>
   ({
@@ -350,6 +370,79 @@ function TerminalPromptAction({
   );
 }
 
+function TerminalConnectorActions({
+  delay,
+  connectors,
+  isPending,
+  onConnect,
+}: {
+  delay: number;
+  connectors: readonly Connector[];
+  isPending: boolean;
+  onConnect: (connector: Connector) => void;
+}) {
+  const isVisible = useVisibleAfter(delay);
+
+  if (!isVisible) {
+    return null;
+  }
+
+  if (connectors.length === 0) {
+    return (
+      <div
+        className="access-terminal-motion-line access-term-line access-terminal-action-line"
+        style={getLineStyle(0)}
+      >
+        <span className="access-term-prompt">$</span>
+        <button
+          aria-label="No wallet connector available"
+          className="access-terminal-prompt-action"
+          disabled
+          type="button"
+        >
+          <span className="access-terminal-prompt-command">
+            no wallet connector available
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {connectors.map((connector) => {
+        const connectorLabel = getConnectorLabel(connector);
+
+        return (
+          <div
+            key={`${connector.id}-${connector.name}`}
+            className="access-terminal-motion-line access-term-line access-terminal-action-line"
+            style={getLineStyle(0)}
+          >
+            <span className="access-term-prompt">$</span>
+            <button
+              aria-label={`Connect ${connectorLabel}`}
+              className="access-terminal-prompt-action"
+              disabled={isPending}
+              type="button"
+              onClick={() => onConnect(connector)}
+            >
+              <span className="access-terminal-prompt-command">
+                {isPending
+                  ? `await connectWallet("${connectorLabel}")`
+                  : `run connectWallet("${connectorLabel}")`}
+              </span>
+              {!isPending ? (
+                <span className="access-term-cursor" aria-hidden="true" />
+              ) : null}
+            </button>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 function StakeAccessSkeleton() {
   return (
     <section
@@ -499,7 +592,6 @@ export function AccessGate({ children }: AccessGateProps) {
     key: null,
     status: "checking",
   });
-  const primaryConnector = connectors[0];
   const shortAddress = getShortAddress(address);
   const accessScanSessionKey = getAccessScanSessionKey(address, SBT_CONTRACT);
   const scanSessionStatus =
@@ -617,16 +709,11 @@ export function AccessGate({ children }: AccessGateProps) {
         steps={timedSteps}
         finalPromptDelay={finalPromptDelay}
       >
-        <TerminalPromptAction
-          ariaLabel="Connect wallet"
+        <TerminalConnectorActions
+          connectors={connectors}
           delay={finalPromptDelay}
-          disabled={!primaryConnector}
           isPending={isPending}
-          label="run connectWallet()"
-          pendingLabel="await connectWallet()"
-          onClick={() =>
-            primaryConnector && connect({ connector: primaryConnector })
-          }
+          onConnect={(connector) => connect({ connector })}
         />
       </AccessTerminalGate>
     );

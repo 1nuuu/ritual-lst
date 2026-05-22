@@ -16,13 +16,14 @@ import { BaseError, decodeEventLog, formatEther, parseGwei } from "viem";
 import { config } from "@/lib/config";
 import { ritualChain } from "@/lib/chain";
 import {
-  getIpfsGatewayUrl,
+  getIpfsGatewayUrls,
   getSbtExplorerUrl,
   isSbtConfigured,
   puffSbtAbi,
   requireSbtContract,
   SBT_CONTRACT,
 } from "@/lib/sbt";
+import type { Connector } from "wagmi";
 
 const MINT_GAS_LIMIT = BigInt(160000);
 const FALLBACK_MAX_FEE_PER_GAS = parseGwei("2");
@@ -51,6 +52,70 @@ type SbtMetadata = {
 
 const formatTokenSerial = (value: string | null) =>
   value ? value.padStart(3, "0") : null;
+
+const getConnectorLabel = (connector: Connector) => {
+  if (connector.id === "injected") {
+    return connector.name || "Browser Wallet";
+  }
+
+  if (connector.id === "walletConnect") {
+    return "WalletConnect";
+  }
+
+  if (
+    connector.id === "coinbaseWallet" ||
+    connector.id === "coinbaseWalletSDK"
+  ) {
+    return "Coinbase Wallet";
+  }
+
+  return connector.name;
+};
+
+const withCacheBuster = (url: string) => {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}t=${Date.now()}`;
+};
+
+const fetchMetadataFromGateways = async (
+  uri: string,
+): Promise<SbtMetadata | null> => {
+  for (const metadataUrl of getIpfsGatewayUrls(uri)) {
+    try {
+      const response = await fetch(withCacheBuster(metadataUrl), {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      return (await response.json()) as SbtMetadata;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
+
+const resolveImageFromGateways = async (uri: string) => {
+  for (const imageUrl of getIpfsGatewayUrls(uri)) {
+    try {
+      const response = await fetch(withCacheBuster(imageUrl), {
+        cache: "no-store",
+      });
+
+      if (response.ok) {
+        return imageUrl;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+};
 
 export function MintModal({ isOpen, onClose }: MintModalProps) {
   const { address, chain, isConnected } = useAccount();
@@ -198,19 +263,22 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
           functionName: "tokenURI",
           args: [BigInt(tokenId)],
         });
-        const metadataUrl = getIpfsGatewayUrl(String(tokenUri));
-        const response = await fetch(`${metadataUrl}?t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        if (!response.ok) {
-          throw new Error(`metadata fetch failed: ${response.status}`);
+        const metadata = await fetchMetadataFromGateways(String(tokenUri));
+        if (!metadata) {
+          if (!cancelled) {
+            setSbtImageUrl(null);
+            setSbtMetadataName(null);
+          }
+          return;
         }
 
-        const metadata = (await response.json()) as SbtMetadata;
-        if (cancelled) return;
+        const imageUrl = metadata.image
+          ? await resolveImageFromGateways(metadata.image)
+          : null;
 
+        if (cancelled) return;
         setSbtMetadataName(metadata.name ?? null);
-        setSbtImageUrl(metadata.image ? getIpfsGatewayUrl(metadata.image) : null);
+        setSbtImageUrl(imageUrl);
       } catch {
         if (!cancelled) {
           setSbtImageUrl(null);
@@ -301,7 +369,7 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
 
     const timer = window.setTimeout(() => {
       router.replace("/stake");
-    }, 1200);
+    }, 6000);
 
     return () => window.clearTimeout(timer);
   }, [phase, router]);
@@ -361,15 +429,15 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
     writeContract,
   ]);
 
-  const handleConnect = useCallback(() => {
-    if (!connectors[0]) {
+  const handleConnect = useCallback((connector?: Connector) => {
+    if (!connector) {
       setConfigError("No wallet connector is available in this browser.");
       setPhase("error");
       return;
     }
 
-    connect({ connector: connectors[0] });
-  }, [connect, connectors]);
+    connect({ connector });
+  }, [connect]);
 
   if (!isOpen) return null;
 
@@ -592,11 +660,37 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
         </div>
 
         {!isSuccessView && (
-          <div className="mint-footer">
+          <div
+            className="mint-footer"
+            style={
+              !isConnected && connectors.length > 1
+                ? { display: "grid", gap: "0.6rem" }
+                : undefined
+            }
+          >
             {!isConnected ? (
-              <button className="btn mint-btn" onClick={handleConnect}>
-                <span>Connect Wallet</span>
-              </button>
+              connectors.length > 0 ? (
+                connectors.map((connector) => {
+                  const connectorLabel = getConnectorLabel(connector);
+
+                  return (
+                    <button
+                      key={`${connector.id}-${connector.name}`}
+                      className="btn mint-btn"
+                      onClick={() => handleConnect(connector)}
+                    >
+                      <span>Connect {connectorLabel}</span>
+                    </button>
+                  );
+                })
+              ) : (
+                <button
+                  className="btn mint-btn"
+                  onClick={() => handleConnect()}
+                >
+                  <span>Connect Wallet</span>
+                </button>
+              )
             ) : phase === "already-minted" ? (
               <button className="btn mint-btn minted" onClick={onClose}>
                 <span>Done</span>

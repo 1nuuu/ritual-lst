@@ -30,11 +30,21 @@ export const getSbtExplorerUrl = (txHash: string) => {
 };
 
 export const getIpfsGatewayUrl = (uri: string) => {
+  return getIpfsGatewayUrls(uri)[0];
+};
+
+export const getIpfsGatewayUrls = (uri: string) => {
   if (!uri.startsWith("ipfs://")) {
-    return uri;
+    return [uri];
   }
 
-  return `https://gateway.pinata.cloud/ipfs/${uri.slice("ipfs://".length)}`;
+  const ipfsPath = uri.slice("ipfs://".length).replace(/^ipfs\//, "");
+
+  return [
+    `https://gateway.pinata.cloud/ipfs/${ipfsPath}`,
+    `https://ipfs.io/ipfs/${ipfsPath}`,
+    `https://cloudflare-ipfs.com/ipfs/${ipfsPath}`,
+  ];
 };
 
 export const puffSbtAbi = [
