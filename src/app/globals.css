@@ -348,6 +348,105 @@ nav {
   overflow-wrap: anywhere;
 }
 
+.wallet-dropdown-address-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wallet-dropdown-address-row .wallet-dropdown-address {
+  margin-bottom: 0;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.wallet-balance-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.wallet-balance-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.wallet-token-dot {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.wallet-token-dot--ritual {
+  background: var(--green);
+  box-shadow: 0 0 12px rgba(25, 209, 132, 0.35);
+}
+
+.wallet-token-dot--xritual {
+  background: var(--pink);
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.32);
+}
+
+.wallet-dropdown-actions {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.wallet-dropdown-action {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 0.65rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
+}
+
+.wallet-dropdown-action span:first-child {
+  color: var(--green);
+  font-family: var(--font-mono);
+}
+
+.wallet-dropdown-action:hover {
+  border-color: rgba(25, 209, 132, 0.28);
+  background: rgba(25, 209, 132, 0.07);
+  color: var(--green);
+}
+
+.wallet-dropdown-action--disconnect:hover {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+  color: var(--red);
+}
+
+.wallet-dropdown-action--disconnect:hover span:first-child {
+  color: var(--red);
+}
+
 .wallet-disconnect {
   width: 100%;
   min-height: 40px;

@@ -3,10 +3,6 @@
 import { useEffect } from "react";
 import type { Connector } from "wagmi";
 
-const WALLETCONNECT_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 185'%3E%3Cpath fill='%233B99FC' d='M61.4 36.9c48.9-47.9 128.3-47.9 177.2 0l5.9 5.8a6.1 6.1 0 0 1 0 8.7l-20.1 19.7a3.2 3.2 0 0 1-4.4 0l-8.1-7.9c-34.1-33.4-89.4-33.4-123.5 0l-8.7 8.5a3.2 3.2 0 0 1-4.4 0L54.2 51.9a6.1 6.1 0 0 1 0-8.7l7.2-6.3zm218.7 40.8 17.9 17.5a6.1 6.1 0 0 1 0 8.7l-80.7 79.1a6.3 6.3 0 0 1-8.9 0l-57.3-56.1a1.6 1.6 0 0 0-2.2 0l-57.3 56.1a6.3 6.3 0 0 1-8.9 0L1.9 104a6.1 6.1 0 0 1 0-8.7l17.9-17.5a6.3 6.3 0 0 1 8.9 0l57.3 56.1a1.6 1.6 0 0 0 2.2 0l57.3-56.1a6.3 6.3 0 0 1 8.9 0l57.3 56.1a1.6 1.6 0 0 0 2.2 0l57.3-56.1a6.3 6.3 0 0 1 8.9 0z'/%3E%3C/svg%3E";
-
-const COINBASE_ICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1024 1024'%3E%3Crect width='1024' height='1024' rx='200' fill='%231652F0'/%3E%3Cpath fill='white' d='M512 692c-99.4 0-180-80.6-180-180s80.6-180 180-180c89.6 0 164.2 65.6 177.4 151.6H868C853.6 331.6 696.6 204 512 204 308.2 204 144 368.2 144 572s164.2 368 368 368c184.6 0 341.6-127.6 356-323.6H689.4C676.2 702.4 601.6 692 512 692z'/%3E%3C/svg%3E";
-
 type WalletSelectModalProps = {
   connectors: readonly Connector[];
   isOpen: boolean;
@@ -48,14 +44,21 @@ const isWalletConnectConnector = (connector: Connector) =>
   connector.id === "walletConnect";
 
 const getConnectorIcon = (connector: Connector): string | null => {
+  // Use connector's own icon if available (EIP-6963 wallets)
   if (connector.icon) return connector.icon;
-  if (connector.id === "walletConnect") return WALLETCONNECT_ICON;
+
+  // Hardcode SVG data URLs for known SDK connectors
+  if (connector.id === "walletConnect") {
+    return "https://avatars.githubusercontent.com/u/37784886?s=200&v=4";
+  }
+
   if (
     connector.id === "coinbaseWalletSDK" ||
     connector.id === "coinbaseWallet"
   ) {
-    return COINBASE_ICON;
+    return "https://avatars.githubusercontent.com/u/18060234?s=200&v=4";
   }
+
   return null;
 };
 
