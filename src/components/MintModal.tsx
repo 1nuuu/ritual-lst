@@ -13,6 +13,7 @@ import {
   useWaitForTransactionReceipt,
 } from "wagmi";
 import { BaseError, decodeEventLog, formatEther, parseGwei } from "viem";
+import { WalletSelectModal } from "@/components/WalletSelectModal";
 import { config } from "@/lib/config";
 import { ritualChain } from "@/lib/chain";
 import {
@@ -52,25 +53,6 @@ type SbtMetadata = {
 
 const formatTokenSerial = (value: string | null) =>
   value ? value.padStart(3, "0") : null;
-
-const getConnectorLabel = (connector: Connector) => {
-  if (connector.id === "injected") {
-    return connector.name || "Browser Wallet";
-  }
-
-  if (connector.id === "walletConnect") {
-    return "WalletConnect";
-  }
-
-  if (
-    connector.id === "coinbaseWallet" ||
-    connector.id === "coinbaseWalletSDK"
-  ) {
-    return "Coinbase Wallet";
-  }
-
-  return connector.name;
-};
 
 const withCacheBuster = (url: string) => {
   const separator = url.includes("?") ? "&" : "?";
@@ -120,7 +102,7 @@ const resolveImageFromGateways = async (uri: string) => {
 export function MintModal({ isOpen, onClose }: MintModalProps) {
   const { address, chain, isConnected } = useAccount();
   const router = useRouter();
-  const { connect, connectors } = useConnect();
+  const { connect, connectors, isPending: isConnectPending } = useConnect();
   const { switchChain } = useSwitchChain();
   const publicClient = usePublicClient({ chainId: ritualChain.id });
   const feeEstimate = useEstimateFeesPerGas({
@@ -188,6 +170,7 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
   const [sbtMetadataName, setSbtMetadataName] = useState<string | null>(null);
   const [isSbtImageLoading, setIsSbtImageLoading] = useState(false);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const mintPrice = mintPriceRead.data as bigint | undefined;
   const maxFeePerGas =
     feeEstimate.data?.maxFeePerGas ?? FALLBACK_MAX_FEE_PER_GAS;
@@ -237,6 +220,7 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
     setSbtMetadataName(null);
     setIsSbtImageLoading(false);
     setConfigError(null);
+    setShowWalletModal(false);
     resetWrite();
   }, [isOpen, isConnected, resetWrite]);
 
@@ -429,13 +413,8 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
     writeContract,
   ]);
 
-  const handleConnect = useCallback((connector?: Connector) => {
-    if (!connector) {
-      setConfigError("No wallet connector is available in this browser.");
-      setPhase("error");
-      return;
-    }
-
+  const handleWalletSelect = useCallback((connector: Connector) => {
+    setShowWalletModal(false);
     connect({ connector });
   }, [connect]);
 
@@ -660,37 +639,14 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
         </div>
 
         {!isSuccessView && (
-          <div
-            className="mint-footer"
-            style={
-              !isConnected && connectors.length > 1
-                ? { display: "grid", gap: "0.6rem" }
-                : undefined
-            }
-          >
+          <div className="mint-footer">
             {!isConnected ? (
-              connectors.length > 0 ? (
-                connectors.map((connector) => {
-                  const connectorLabel = getConnectorLabel(connector);
-
-                  return (
-                    <button
-                      key={`${connector.id}-${connector.name}`}
-                      className="btn mint-btn"
-                      onClick={() => handleConnect(connector)}
-                    >
-                      <span>Connect {connectorLabel}</span>
-                    </button>
-                  );
-                })
-              ) : (
-                <button
-                  className="btn mint-btn"
-                  onClick={() => handleConnect()}
-                >
-                  <span>Connect Wallet</span>
-                </button>
-              )
+              <button
+                className="btn mint-btn"
+                onClick={() => setShowWalletModal(true)}
+              >
+                <span>Connect Wallet</span>
+              </button>
             ) : phase === "already-minted" ? (
               <button className="btn mint-btn minted" onClick={onClose}>
                 <span>Done</span>
@@ -730,6 +686,13 @@ export function MintModal({ isOpen, onClose }: MintModalProps) {
           </div>
         )}
       </div>
+      <WalletSelectModal
+        connectors={connectors}
+        isOpen={showWalletModal}
+        isPending={isConnectPending}
+        onClose={() => setShowWalletModal(false)}
+        onConnect={handleWalletSelect}
+      />
     </>
   );
 }

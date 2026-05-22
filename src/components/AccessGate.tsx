@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import type { Connector } from "wagmi";
 import { useAccount, useConnect } from "wagmi";
+import { WalletSelectModal } from "@/components/WalletSelectModal";
 import { config } from "@/lib/config";
 import { useHasSBT } from "@/lib/hooks/useHasSBT";
 import { SBT_CONTRACT } from "@/lib/sbt";
@@ -45,25 +46,6 @@ const getAccessScanSessionKey = (
 
 const getShortAddress = (wallet: string | undefined) =>
   wallet ? `${wallet.slice(0, 6)}...${wallet.slice(-4)}` : "undefined";
-
-const getConnectorLabel = (connector: Connector) => {
-  if (connector.id === "injected") {
-    return connector.name || "Browser Wallet";
-  }
-
-  if (connector.id === "walletConnect") {
-    return "WalletConnect";
-  }
-
-  if (
-    connector.id === "coinbaseWallet" ||
-    connector.id === "coinbaseWalletSDK"
-  ) {
-    return "Coinbase Wallet";
-  }
-
-  return connector.name;
-};
 
 const getLineStyle = (delay: number) =>
   ({
@@ -370,79 +352,6 @@ function TerminalPromptAction({
   );
 }
 
-function TerminalConnectorActions({
-  delay,
-  connectors,
-  isPending,
-  onConnect,
-}: {
-  delay: number;
-  connectors: readonly Connector[];
-  isPending: boolean;
-  onConnect: (connector: Connector) => void;
-}) {
-  const isVisible = useVisibleAfter(delay);
-
-  if (!isVisible) {
-    return null;
-  }
-
-  if (connectors.length === 0) {
-    return (
-      <div
-        className="access-terminal-motion-line access-term-line access-terminal-action-line"
-        style={getLineStyle(0)}
-      >
-        <span className="access-term-prompt">$</span>
-        <button
-          aria-label="No wallet connector available"
-          className="access-terminal-prompt-action"
-          disabled
-          type="button"
-        >
-          <span className="access-terminal-prompt-command">
-            no wallet connector available
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {connectors.map((connector) => {
-        const connectorLabel = getConnectorLabel(connector);
-
-        return (
-          <div
-            key={`${connector.id}-${connector.name}`}
-            className="access-terminal-motion-line access-term-line access-terminal-action-line"
-            style={getLineStyle(0)}
-          >
-            <span className="access-term-prompt">$</span>
-            <button
-              aria-label={`Connect ${connectorLabel}`}
-              className="access-terminal-prompt-action"
-              disabled={isPending}
-              type="button"
-              onClick={() => onConnect(connector)}
-            >
-              <span className="access-terminal-prompt-command">
-                {isPending
-                  ? `await connectWallet("${connectorLabel}")`
-                  : `run connectWallet("${connectorLabel}")`}
-              </span>
-              {!isPending ? (
-                <span className="access-term-cursor" aria-hidden="true" />
-              ) : null}
-            </button>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 function StakeAccessSkeleton() {
   return (
     <section
@@ -584,6 +493,7 @@ export function AccessGate({ children }: AccessGateProps) {
   const { connect, connectors, isPending } = useConnect();
   const { hasSBT: hasAccess, isLoading } = useHasSBT();
   const [mounted, setMounted] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
   const [grantScanComplete, setGrantScanComplete] = useState(false);
   const [scanSession, setScanSession] = useState<{
     key: string | null;
@@ -600,6 +510,11 @@ export function AccessGate({ children }: AccessGateProps) {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleWalletSelect = (connector: Connector) => {
+    setShowWalletModal(false);
+    connect({ connector });
+  };
 
   useEffect(() => {
     if (!mounted || !accessScanSessionKey) {
@@ -702,20 +617,31 @@ export function AccessGate({ children }: AccessGateProps) {
     ]);
 
     return (
-      <AccessTerminalGate
-        title="Wallet access check"
-        heading="Connect Wallet"
-        headingId="connect-wallet-title"
-        steps={timedSteps}
-        finalPromptDelay={finalPromptDelay}
-      >
-        <TerminalConnectorActions
+      <>
+        <AccessTerminalGate
+          title="Wallet access check"
+          heading="Connect Wallet"
+          headingId="connect-wallet-title"
+          steps={timedSteps}
+          finalPromptDelay={finalPromptDelay}
+        >
+          <TerminalPromptAction
+            ariaLabel="Open wallet connector selection"
+            delay={finalPromptDelay}
+            isPending={isPending}
+            label="run connectWallet()"
+            pendingLabel="await connectWallet()"
+            onClick={() => setShowWalletModal(true)}
+          />
+        </AccessTerminalGate>
+        <WalletSelectModal
           connectors={connectors}
-          delay={finalPromptDelay}
+          isOpen={showWalletModal}
           isPending={isPending}
-          onConnect={(connector) => connect({ connector })}
+          onClose={() => setShowWalletModal(false)}
+          onConnect={handleWalletSelect}
         />
-      </AccessTerminalGate>
+      </>
     );
   }
 
