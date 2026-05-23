@@ -9,6 +9,7 @@ import {
   useAccount,
   useBalance,
   useConnect,
+  useConnectorClient,
   useDisconnect,
   useReadContract,
 } from "wagmi";
@@ -45,6 +46,9 @@ export function Nav() {
   const pathname = usePathname();
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnectPending } = useConnect();
+  const { data: connectorClient } = useConnectorClient({
+    chainId: ritualChain.id,
+  });
   const { disconnect } = useDisconnect();
   const nativeBalance = useBalance({
     address,
@@ -126,6 +130,46 @@ export function Nav() {
     await navigator.clipboard.writeText(address);
   };
 
+  const addXRitualToWallet = async () => {
+    if (!XRITUAL_CONTRACT) {
+      return;
+    }
+
+    try {
+      const watchAssetRequest = {
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: XRITUAL_CONTRACT,
+            symbol: config.lstSymbol,
+            decimals: 18,
+          },
+        },
+      } as const;
+
+      if (connectorClient?.transport?.request) {
+        await (
+          connectorClient.transport.request as (
+            args: typeof watchAssetRequest,
+          ) => Promise<unknown>
+        )(watchAssetRequest);
+        return;
+      }
+
+      const provider = (window as Window & {
+        ethereum?: { request: (args: unknown) => Promise<unknown> };
+      }).ethereum;
+
+      if (provider) {
+        await provider.request(watchAssetRequest);
+        return;
+      }
+    } catch {
+      return;
+    }
+  };
+
   return (
     <>
       <nav className="site-nav" aria-label="Primary navigation">
@@ -184,33 +228,54 @@ export function Nav() {
 
                       <div className="wallet-balance-list">
                         <div className="wallet-balance-row">
-                          <span
-                            className="wallet-token-dot wallet-token-dot--ritual"
-                            aria-hidden="true"
-                          />
-                          <span>
-                            {ritualBalanceLabel} {config.tokenSymbol}
+                          <span className="wallet-balance-token">
+                            <span
+                              className="wallet-token-dot wallet-token-dot--ritual"
+                              aria-hidden="true"
+                            />
+                            <span className="wallet-balance-amount">
+                              {ritualBalanceLabel}
+                            </span>
+                          </span>
+                          <span className="wallet-balance-symbol">
+                            {config.tokenSymbol}
                           </span>
                         </div>
                         <div className="wallet-balance-row">
-                          <span
-                            className="wallet-token-dot wallet-token-dot--xritual"
-                            aria-hidden="true"
-                          />
-                          <span>
-                            {xRitualBalanceLabel} {config.lstSymbol}
+                          <span className="wallet-balance-token">
+                            <span
+                              className="wallet-token-dot wallet-token-dot--xritual"
+                              aria-hidden="true"
+                            />
+                            <span className="wallet-balance-amount">
+                              {xRitualBalanceLabel}
+                            </span>
+                          </span>
+                          <span className="wallet-balance-symbol">
+                            {config.lstSymbol}
                           </span>
                         </div>
                       </div>
 
                       <div className="wallet-dropdown-actions">
+                        {XRITUAL_CONTRACT ? (
+                          <button
+                            className="wallet-dropdown-action"
+                            role="menuitem"
+                            type="button"
+                            onClick={addXRitualToWallet}
+                          >
+                            <span aria-hidden="true">+</span>
+                            <span>Add {config.lstSymbol} to Wallet</span>
+                          </button>
+                        ) : null}
                         <button
                           className="wallet-dropdown-action"
                           role="menuitem"
                           type="button"
                           onClick={handleCopyAddress}
                         >
-                          <span aria-hidden="true">+</span>
+                          <span aria-hidden="true">⧉</span>
                           <span>Copy Address</span>
                         </button>
                         <button
