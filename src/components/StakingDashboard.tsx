@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatEther, parseEther } from "viem";
-import { useAccount, useBalance } from "wagmi";
+import { useAccount, useBalance, useSwitchChain } from "wagmi";
 import { ritualChain } from "@/lib/chain";
 import { config } from "@/lib/config";
 import { useStaking } from "@/lib/hooks/useStaking";
@@ -68,6 +68,7 @@ type StatusFeedbackProps = {
   status: "idle" | "pending" | "success" | "error";
   error: string | null;
   formError: string | null;
+  isWrongChain: boolean;
   action: "Stake" | "Unstake" | "Claim" | null;
 };
 
@@ -89,8 +90,17 @@ function StatusFeedback({
   status,
   error,
   formError,
+  isWrongChain,
   action,
 }: StatusFeedbackProps) {
+  if (isWrongChain) {
+    return (
+      <p className="tx-status error">
+        Please switch to Ritual Chain to continue
+      </p>
+    );
+  }
+
   if (formError) {
     return <p className="tx-status error">{formError}</p>;
   }
@@ -163,7 +173,8 @@ function TokenField({
 }
 
 export function StakingDashboard() {
-  const { address } = useAccount();
+  const { address, chain } = useAccount();
+  const { switchChain } = useSwitchChain();
   const [mode, setMode] = useState<StakeMode>("stake");
   const [stakeAmount, setStakeAmount] = useState("");
   const [unstakeAmount, setUnstakeAmount] = useState("");
@@ -219,24 +230,6 @@ export function StakingDashboard() {
     }
   };
 
-  const handleStake = () => {
-    const parsedAmount = parseInputAmount(stakeAmount, "Stake");
-
-    if (parsedAmount) {
-      setActiveAction("Stake");
-      stake(parsedAmount);
-    }
-  };
-
-  const handleUnstake = () => {
-    const parsedAmount = parseInputAmount(unstakeAmount, "Unstake");
-
-    if (parsedAmount) {
-      setActiveAction("Unstake");
-      unstake(parsedAmount);
-    }
-  };
-
   const handleClaimUnstaked = () => {
     setFormError(null);
     setActiveAction("Claim");
@@ -250,6 +243,7 @@ export function StakingDashboard() {
   };
 
   const contractReady = isStakingPoolConfigured;
+  const isWrongChain = Boolean(address && chain?.id !== ritualChain.id);
   const actionDisabled = isLoading || !contractReady || !address;
   const nativeBalanceValue = nativeBalance.data?.value ?? ZERO;
 
@@ -281,6 +275,38 @@ export function StakingDashboard() {
   const unbondingMinutesRemaining = Math.ceil(
     (Number(blocksUntilClaimable) * 350) / 60000,
   );
+
+  const handleSwitchNetwork = () => {
+    switchChain({ chainId: ritualChain.id });
+  };
+
+  const handleStake = () => {
+    if (isWrongChain) {
+      handleSwitchNetwork();
+      return;
+    }
+
+    const parsedAmount = parseInputAmount(stakeAmount, "Stake");
+
+    if (parsedAmount) {
+      setActiveAction("Stake");
+      stake(parsedAmount);
+    }
+  };
+
+  const handleUnstake = () => {
+    if (isWrongChain) {
+      handleSwitchNetwork();
+      return;
+    }
+
+    const parsedAmount = parseInputAmount(unstakeAmount, "Unstake");
+
+    if (parsedAmount) {
+      setActiveAction("Unstake");
+      unstake(parsedAmount);
+    }
+  };
 
   return (
     <section className="staking-dashboard" aria-labelledby="staking-dashboard-title">
@@ -413,6 +439,7 @@ export function StakingDashboard() {
               status={txStatus}
               error={txError}
               formError={formError}
+              isWrongChain={isWrongChain}
               action={activeAction}
             />
 
@@ -472,14 +499,25 @@ export function StakingDashboard() {
               accent={mode === "stake" ? "receipt" : "ritual"}
             />
 
-            <button
-              className="btn staking-action stake-swap-action"
-              disabled={actionDisabled}
-              type="button"
-              onClick={mode === "stake" ? handleStake : handleUnstake}
-            >
-              <span>{primaryButtonCopy}</span>
-            </button>
+            {isWrongChain ? (
+              <button
+                className="btn staking-action stake-swap-action"
+                disabled={!address}
+                type="button"
+                onClick={handleSwitchNetwork}
+              >
+                <span>Switch Network</span>
+              </button>
+            ) : (
+              <button
+                className="btn staking-action stake-swap-action"
+                disabled={actionDisabled}
+                type="button"
+                onClick={mode === "stake" ? handleStake : handleUnstake}
+              >
+                <span>{primaryButtonCopy}</span>
+              </button>
+            )}
 
             <div className="stake-rate-panel" aria-label="Staking rate details">
               <div>
