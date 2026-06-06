@@ -1,0 +1,10 @@
+.agents/
+skills-lock.json
+.codex/
+.vercel/
+.env
+.env.*
+!.env.example
+contracts/.env
+contracts/.env.*
+!contracts/.env.example
