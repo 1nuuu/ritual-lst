@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { formatEther } from "viem";
 import type { Connector } from "wagmi";
 import {
@@ -16,6 +16,7 @@ import {
 import { WalletSelectModal } from "@/components/WalletSelectModal";
 import { ritualChain } from "@/lib/chain";
 import { config } from "@/lib/config";
+import type { ContractVersion } from "@/lib/contracts";
 import { XRITUAL_CONTRACT, xRitualAbi } from "@/lib/xritual";
 
 const navLinks = [
@@ -24,6 +25,15 @@ const navLinks = [
   { label: "Leaderboard", href: "/leaderboard" },
   { label: "Docs", href: "/docs" },
 ] as const;
+
+const stakeVersionOptions: Array<{
+  label: string;
+  badge: string;
+  version: ContractVersion;
+}> = [
+  { label: "V2 (new)", badge: "Public", version: "v2" },
+  { label: "V1 (old)", badge: "SBT only", version: "v1" },
+];
 
 const formatBalance = (value: bigint | undefined) => {
   if (value === undefined) {
@@ -39,11 +49,14 @@ const formatBalance = (value: bigint | undefined) => {
 export function Nav() {
   const [isLight, setIsLight] = useState(false);
   const [walletOpen, setWalletOpen] = useState(false);
+  const [stakeMenuOpen, setStakeMenuOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
   const walletMenuRef = useRef<HTMLDivElement>(null);
+  const stakeMenuRef = useRef<HTMLDivElement>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending: isConnectPending } = useConnect();
   const { data: connectorClient } = useConnectorClient({
@@ -88,12 +101,20 @@ export function Nav() {
       ) {
         setMobileNavOpen(false);
       }
+
+      if (
+        stakeMenuRef.current &&
+        !stakeMenuRef.current.contains(event.target as Node)
+      ) {
+        setStakeMenuOpen(false);
+      }
     };
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setWalletOpen(false);
         setMobileNavOpen(false);
+        setStakeMenuOpen(false);
       }
     };
 
@@ -107,15 +128,69 @@ export function Nav() {
 
   useEffect(() => {
     setMobileNavOpen(false);
+    setStakeMenuOpen(false);
   }, [pathname]);
 
   const truncate = (addr: string) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const activeNavLink = navLinks.find((item) => item.href === pathname);
-  const mobileNavLabel = activeNavLink?.label ?? "Menu";
+  const getVersionFromLocation = () => {
+    if (typeof window === "undefined") {
+      return "v2" as ContractVersion;
+    }
+
+    return new URLSearchParams(window.location.search).get("version") === "v1"
+      ? "v1"
+      : "v2";
+  };
+  const [stakeVersion, setStakeVersion] =
+    useState<ContractVersion>(getVersionFromLocation);
+  const stakeVersionLabel = stakeVersion === "v2" ? "V2 (new)" : "V1 (old)";
+  const mobileNavLabel =
+    pathname === "/stake"
+      ? `Stake ${stakeVersionLabel}`
+      : activeNavLink?.label ?? "Menu";
   const ritualBalanceLabel = formatBalance(nativeBalance.data?.value);
   const xRitualBalanceLabel = formatBalance(xRitualBalance.data);
+
+  useEffect(() => {
+    const syncStakeVersion = (event?: Event) => {
+      const nextVersion = (event as CustomEvent<ContractVersion> | undefined)
+        ?.detail;
+
+      if (nextVersion === "v1" || nextVersion === "v2") {
+        setStakeVersion(nextVersion);
+        return;
+      }
+
+      setStakeVersion(getVersionFromLocation());
+    };
+
+    syncStakeVersion();
+    window.addEventListener("popstate", syncStakeVersion);
+    window.addEventListener("ritual-stake-version-change", syncStakeVersion);
+
+    return () => {
+      window.removeEventListener("popstate", syncStakeVersion);
+      window.removeEventListener(
+        "ritual-stake-version-change",
+        syncStakeVersion,
+      );
+    };
+  }, [pathname]);
+
+  const handleStakeVersionSelect = (version: ContractVersion) => {
+    setStakeVersion(version);
+    setStakeMenuOpen(false);
+    setMobileNavOpen(false);
+    window.dispatchEvent(
+      new CustomEvent<ContractVersion>("ritual-stake-version-change", {
+        detail: version,
+      }),
+    );
+    router.push(`/stake?version=${version}`);
+  };
 
   const handleWalletSelect = (connector: Connector) => {
     setShowWalletModal(false);
@@ -181,6 +256,75 @@ export function Nav() {
           <div className="nav-center" aria-label="Main sections">
             {navLinks.map((item) => {
               const isActive = pathname === item.href;
+
+              if (item.href === "/stake") {
+                return (
+                  <div
+                    className="nav-stake-menu"
+                    key={item.href}
+                    ref={stakeMenuRef}
+                  >
+                    <button
+                      className={`nav-link nav-stake-trigger ${
+                        isActive ? "active" : ""
+                      }`}
+                      type="button"
+                      aria-current={isActive ? "page" : undefined}
+                      aria-expanded={stakeMenuOpen}
+                      aria-haspopup="menu"
+                      onClick={() => setStakeMenuOpen((open) => !open)}
+                    >
+                      <span>{item.label}</span>
+                      <span className="nav-stake-version">
+                        {stakeVersionLabel}
+                      </span>
+                      <span
+                        className={`nav-stake-caret ${
+                          stakeMenuOpen ? "open" : ""
+                        }`}
+                        aria-hidden="true"
+                      >
+                        v
+                      </span>
+                    </button>
+
+                    {stakeMenuOpen ? (
+                      <div
+                        className="nav-stake-dropdown"
+                        role="menu"
+                        aria-label="Stake version"
+                      >
+                        {stakeVersionOptions.map((option) => (
+                          <button
+                            className={`nav-stake-option ${
+                              stakeVersion === option.version ? "active" : ""
+                            }`}
+                            key={option.version}
+                            type="button"
+                            role="menuitem"
+                            onPointerDown={(event) => {
+                              event.preventDefault();
+                              handleStakeVersionSelect(option.version);
+                            }}
+                            onClick={() =>
+                              handleStakeVersionSelect(option.version)
+                            }
+                          >
+                            <span>{option.label}</span>
+                            <span
+                              className={`nav-version-badge ${
+                                option.version === "v1" ? "legacy" : ""
+                              }`}
+                            >
+                              {option.badge}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              }
 
               return (
                 <Link
@@ -333,6 +477,42 @@ export function Nav() {
               <div className="mobile-nav-dropdown" role="menu">
                 {navLinks.map((item) => {
                   const isActive = pathname === item.href;
+
+                  if (item.href === "/stake") {
+                    return stakeVersionOptions.map((option) => (
+                      <button
+                        key={`${item.href}-${option.version}`}
+                        className={`mobile-nav-option ${
+                          isActive && stakeVersion === option.version
+                            ? "active"
+                            : ""
+                        }`}
+                        type="button"
+                        role="menuitem"
+                        aria-current={
+                          isActive && stakeVersion === option.version
+                            ? "page"
+                            : undefined
+                        }
+                        onPointerDown={(event) => {
+                          event.preventDefault();
+                          handleStakeVersionSelect(option.version);
+                        }}
+                        onClick={() =>
+                          handleStakeVersionSelect(option.version)
+                        }
+                      >
+                      <span>Stake {option.label}</span>
+                        <span
+                          className={`nav-version-badge ${
+                            option.version === "v1" ? "legacy" : ""
+                          }`}
+                        >
+                          {option.badge}
+                        </span>
+                      </button>
+                    ));
+                  }
 
                   return (
                     <Link

@@ -18,6 +18,7 @@ export const wagmiConfig = createConfig({
   chains: [ritualChain],
   connectors,
   multiInjectedProviderDiscovery: true,
+  ssr: true,
   transports: {
     [ritualChain.id]: http(),
   },

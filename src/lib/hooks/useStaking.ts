@@ -8,16 +8,9 @@ import {
   useWriteContract,
 } from "wagmi";
 import { ritualChain } from "@/lib/chain";
-import {
-  isStakingPoolConfigured,
-  STAKING_POOL_CONTRACT,
-  stakingPoolAbi,
-} from "@/lib/staking";
-import {
-  isXRitualConfigured,
-  XRITUAL_CONTRACT,
-  xRitualAbi,
-} from "@/lib/xritual";
+import { CONTRACTS, type ContractVersion } from "@/lib/contracts";
+import { stakingPoolAbi } from "@/lib/staking";
+import { xRitualAbi } from "@/lib/xritual";
 
 export type StakingTransactionStatus =
   | "idle"
@@ -51,66 +44,72 @@ const getErrorMessage = (error: unknown) => {
   return "Transaction failed.";
 };
 
-export function useStaking(userAddress: string | undefined) {
+export function useStaking(
+  userAddress: string | undefined,
+  version: ContractVersion = "v2",
+) {
   const [localError, setLocalError] = useState<string | null>(null);
   const contractUserAddress = isWalletAddress(userAddress)
     ? userAddress
     : undefined;
+  const selectedContracts = CONTRACTS[version];
+  const stakingPoolContract = selectedContracts.stakingPool;
+  const xRitualContract = selectedContracts.xRitual;
 
   const totalStakedRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
+    address: stakingPoolContract,
     abi: stakingPoolAbi,
     functionName: "totalStaked",
     query: {
-      enabled: isStakingPoolConfigured,
+      enabled: Boolean(stakingPoolContract),
     },
   });
 
   const xRitualBalanceRead = useReadContract({
-    address: XRITUAL_CONTRACT,
+    address: xRitualContract,
     abi: xRitualAbi,
     functionName: "balanceOf",
     args: contractUserAddress ? [contractUserAddress] : undefined,
     query: {
-      enabled: Boolean(contractUserAddress && isXRitualConfigured),
+      enabled: Boolean(contractUserAddress && xRitualContract),
     },
   });
 
   const exchangeRateRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
+    address: stakingPoolContract,
     abi: stakingPoolAbi,
     functionName: "exchangeRate",
     query: {
-      enabled: isStakingPoolConfigured,
+      enabled: Boolean(stakingPoolContract),
     },
   });
 
   const currentAPRRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
+    address: stakingPoolContract,
     abi: stakingPoolAbi,
     functionName: "currentAPR",
     query: {
-      enabled: isStakingPoolConfigured,
+      enabled: Boolean(stakingPoolContract),
     },
   });
 
   const unbondingRequestRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
+    address: stakingPoolContract,
     abi: stakingPoolAbi,
     functionName: "getUnbondingRequest",
     args: contractUserAddress ? [contractUserAddress] : undefined,
     query: {
-      enabled: Boolean(contractUserAddress && isStakingPoolConfigured),
+      enabled: Boolean(contractUserAddress && stakingPoolContract),
     },
   });
 
   const blocksUntilClaimableRead = useReadContract({
-    address: STAKING_POOL_CONTRACT,
+    address: stakingPoolContract,
     abi: stakingPoolAbi,
     functionName: "blocksUntilClaimable",
     args: contractUserAddress ? [contractUserAddress] : undefined,
     query: {
-      enabled: Boolean(contractUserAddress && isStakingPoolConfigured),
+      enabled: Boolean(contractUserAddress && stakingPoolContract),
     },
   });
 
@@ -161,7 +160,6 @@ export function useStaking(userAddress: string | undefined) {
   const stake = useCallback(
     (amount: bigint) => {
       setLocalError(null);
-      const stakingPoolContract = STAKING_POOL_CONTRACT;
 
       if (!stakingPoolContract) {
         setLocalError("Staking pool contract is not configured.");
@@ -181,13 +179,12 @@ export function useStaking(userAddress: string | undefined) {
         value: amount,
       });
     },
-    [writeContract],
+    [stakingPoolContract, writeContract],
   );
 
   const unstake = useCallback(
     (amount: bigint) => {
       setLocalError(null);
-      const stakingPoolContract = STAKING_POOL_CONTRACT;
 
       if (!stakingPoolContract) {
         setLocalError("Staking pool contract is not configured.");
@@ -207,12 +204,11 @@ export function useStaking(userAddress: string | undefined) {
         chainId: ritualChain.id,
       });
     },
-    [writeContract],
+    [stakingPoolContract, writeContract],
   );
 
   const claimUnstaked = useCallback(() => {
     setLocalError(null);
-    const stakingPoolContract = STAKING_POOL_CONTRACT;
 
     if (!stakingPoolContract) {
       setLocalError("Staking pool contract is not configured.");
@@ -225,7 +221,7 @@ export function useStaking(userAddress: string | undefined) {
       functionName: "claimUnstaked",
       chainId: ritualChain.id,
     });
-  }, [writeContract]);
+  }, [stakingPoolContract, writeContract]);
 
   const unbondingRequest = unbondingRequestRead.data
     ? {
@@ -245,12 +241,15 @@ export function useStaking(userAddress: string | undefined) {
       : isConfirmed && receipt?.status === "success"
         ? "success"
         : "idle";
+  const confirmedTxHash =
+    isConfirmed && receipt?.status === "success" ? txHash : undefined;
 
   return {
     totalStaked: totalStakedRead.data ?? BigInt(0),
     xRitualBalance: xRitualBalanceRead.data ?? BigInt(0),
     exchangeRate: exchangeRateRead.data ?? BigInt(0),
     currentAPR: currentAPRRead.data ?? BigInt(0),
+    isConfigured: Boolean(stakingPoolContract && xRitualContract),
     unbondingRequest,
     blocksUntilClaimable: blocksUntilClaimableRead.data ?? BigInt(0),
     stake,
@@ -267,5 +266,6 @@ export function useStaking(userAddress: string | undefined) {
       isConfirming,
     txStatus,
     txError,
+    confirmedTxHash,
   };
 }

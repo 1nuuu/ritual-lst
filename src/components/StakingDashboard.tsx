@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatEther, parseEther } from "viem";
 import { useAccount, useBalance, useSwitchChain } from "wagmi";
 import { ritualChain } from "@/lib/chain";
 import { config } from "@/lib/config";
+import type { ContractVersion } from "@/lib/contracts";
+import { useRecordPoints } from "@/lib/hooks/useRecordPoints";
 import { useStaking } from "@/lib/hooks/useStaking";
-import { isStakingPoolConfigured } from "@/lib/staking";
 
 const ZERO = BigInt(0);
 
@@ -63,6 +64,10 @@ const formatExchangeRate = (rate: bigint) => {
 };
 
 type StakeMode = "stake" | "unstake";
+
+type StakingDashboardProps = {
+  version?: ContractVersion;
+};
 
 type StatusFeedbackProps = {
   status: "idle" | "pending" | "success" | "error";
@@ -172,16 +177,23 @@ function TokenField({
   );
 }
 
-export function StakingDashboard() {
+export function StakingDashboard({
+  version = "v2",
+}: StakingDashboardProps) {
   const { address, chain } = useAccount();
   const { switchChain } = useSwitchChain();
-  const [mode, setMode] = useState<StakeMode>("stake");
+  const isLegacyVersion = version === "v1";
+  const [mode, setMode] = useState<StakeMode>(
+    isLegacyVersion ? "unstake" : "stake",
+  );
   const [stakeAmount, setStakeAmount] = useState("");
   const [unstakeAmount, setUnstakeAmount] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [activeAction, setActiveAction] = useState<
     "Stake" | "Unstake" | "Claim" | null
   >(null);
+  const lastRecordedTxHashRef = useRef<string | null>(null);
+  const { record } = useRecordPoints();
 
   const {
     totalStaked,
@@ -194,9 +206,11 @@ export function StakingDashboard() {
     unstake,
     claimUnstaked,
     isLoading,
+    isConfigured,
     txStatus,
     txError,
-  } = useStaking(address);
+    confirmedTxHash,
+  } = useStaking(address, version);
 
   const nativeBalance = useBalance({
     address,
@@ -205,6 +219,45 @@ export function StakingDashboard() {
       enabled: Boolean(address),
     },
   });
+
+  useEffect(() => {
+    if (isLegacyVersion && mode !== "unstake") {
+      setMode("unstake");
+      setFormError(null);
+      setActiveAction(null);
+    }
+  }, [isLegacyVersion, mode]);
+
+  useEffect(() => {
+    if (!address || !confirmedTxHash || txStatus !== "success") {
+      return;
+    }
+
+    if (lastRecordedTxHashRef.current === confirmedTxHash) {
+      return;
+    }
+
+    if (activeAction === "Stake") {
+      lastRecordedTxHashRef.current = confirmedTxHash;
+      void record({
+        address,
+        eventType: "stake",
+        txHash: confirmedTxHash,
+        contractVer: version,
+      });
+      return;
+    }
+
+    if (activeAction === "Unstake") {
+      lastRecordedTxHashRef.current = confirmedTxHash;
+      void record({
+        address,
+        eventType: "unstake",
+        txHash: confirmedTxHash,
+        contractVer: version,
+      });
+    }
+  }, [activeAction, address, confirmedTxHash, record, txStatus, version]);
 
   const parseInputAmount = (value: string, action: string) => {
     const trimmed = value.trim();
@@ -237,14 +290,22 @@ export function StakingDashboard() {
   };
 
   const handleModeChange = (nextMode: StakeMode) => {
+    if (isLegacyVersion && nextMode === "stake") {
+      return;
+    }
+
     setMode(nextMode);
     setFormError(null);
     setActiveAction(null);
   };
 
-  const contractReady = isStakingPoolConfigured;
+  const contractReady = isConfigured;
   const isWrongChain = Boolean(address && chain?.id !== ritualChain.id);
-  const actionDisabled = isLoading || !contractReady || !address;
+  const actionDisabled =
+    isLoading ||
+    !contractReady ||
+    !address ||
+    (isLegacyVersion && mode === "stake");
   const nativeBalanceValue = nativeBalance.data?.value ?? ZERO;
 
   const inputAmount = mode === "stake" ? stakeAmount : unstakeAmount;
@@ -396,6 +457,13 @@ export function StakingDashboard() {
         </div>
 
         <div className="stake-swap-layout">
+          {isLegacyVersion ? (
+            <div className="v1-migration-banner">
+              <span>You are on V1 (old). Stake is disabled.</span>
+              <span>Unstake your RITUAL, then switch to V2 (new).</span>
+            </div>
+          ) : null}
+
           <article className="stake-swap-card">
             <span className="stake-card-bg" aria-hidden="true" />
             <span className="stake-card-blob" aria-hidden="true" />
@@ -404,16 +472,22 @@ export function StakingDashboard() {
               <strong>{mode === "stake" ? "Stake" : "Unstake"}</strong>
             </div>
 
-            <div className="stake-mode-toggle" role="tablist" aria-label="Staking mode">
-              <button
-                className={mode === "stake" ? "active" : ""}
-                type="button"
-                role="tab"
-                aria-selected={mode === "stake"}
-                onClick={() => handleModeChange("stake")}
-              >
-                Stake
-              </button>
+            <div
+              className={`stake-mode-toggle ${isLegacyVersion ? "single" : ""}`}
+              role="tablist"
+              aria-label="Staking mode"
+            >
+              {!isLegacyVersion ? (
+                <button
+                  className={mode === "stake" ? "active" : ""}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "stake"}
+                  onClick={() => handleModeChange("stake")}
+                >
+                  Stake
+                </button>
+              ) : null}
               <button
                 className={mode === "unstake" ? "active" : ""}
                 type="button"
@@ -474,6 +548,7 @@ export function StakingDashboard() {
                 type="button"
                 aria-label={`Switch to ${mode === "stake" ? "unstake" : "stake"} mode`}
                 title={`Switch to ${mode === "stake" ? "unstake" : "stake"}`}
+                disabled={isLegacyVersion}
                 onClick={() =>
                   handleModeChange(mode === "stake" ? "unstake" : "stake")
                 }
@@ -532,7 +607,6 @@ export function StakingDashboard() {
                 </strong>
               </div>
             </div>
-
           </article>
         </div>
       </div>
