@@ -17,6 +17,7 @@ import { WalletSelectModal } from "@/components/WalletSelectModal";
 import { ritualChain } from "@/lib/chain";
 import { config } from "@/lib/config";
 import type { ContractVersion } from "@/lib/contracts";
+import { useWalletSync } from "@/lib/hooks/useWalletSync";
 import { XRITUAL_CONTRACT, xRitualAbi } from "@/lib/xritual";
 
 const navLinks = [
@@ -58,6 +59,7 @@ export function Nav() {
   const pathname = usePathname();
   const router = useRouter();
   const { address, isConnected } = useAccount();
+  useWalletSync(address);
   const { connect, connectors, isPending: isConnectPending } = useConnect();
   const { data: connectorClient } = useConnectorClient({
     chainId: ritualChain.id,

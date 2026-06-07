@@ -91,6 +91,7 @@ const sbtAbi = parseAbi([
   "function balanceOf(address owner) view returns (uint256)",
   "function addressToTokenId(address owner) view returns (uint256)",
   "function mintedAt(uint256 tokenId) view returns (uint256)",
+  "function ownerOf(uint256 tokenId) view returns (address)",
 ]);
 
 class PointsRecordError extends Error {
@@ -255,6 +256,16 @@ const getBlockTimestamp = async (blockNumber: bigint) => {
   return date;
 };
 
+const normalizeTimestampMs = (timestamp: bigint | number) => {
+  const value = Number(timestamp);
+
+  if (!Number.isFinite(value) || value <= 0) {
+    return null;
+  }
+
+  return value > 10_000_000_000 ? value : value * 1000;
+};
+
 const getVerifiedAmountWei = ({
   eventType,
   userAddress,
@@ -324,6 +335,17 @@ const getSbtBonusPoints = async ({
       return 0;
     }
 
+    const owner = await client.readContract({
+      address: SBT_CONTRACT,
+      abi: sbtAbi,
+      functionName: "ownerOf",
+      args: [tokenId],
+    });
+
+    if (!addressesMatch(owner, address)) {
+      return 0;
+    }
+
     const mintedAt = await client.readContract({
       address: SBT_CONTRACT,
       abi: sbtAbi,
@@ -331,9 +353,9 @@ const getSbtBonusPoints = async ({
       args: [tokenId],
     });
 
-    const txTimeSeconds = Math.floor(blockTimestamp.getTime() / 1000);
+    const mintedAtMs = normalizeTimestampMs(mintedAt);
 
-    return mintedAt > ZERO && mintedAt <= BigInt(txTimeSeconds)
+    return mintedAtMs !== null && mintedAtMs <= blockTimestamp.getTime()
       ? POINTS_CONFIG.SBT_FIRST_STAKE_BONUS
       : 0;
   } catch {
